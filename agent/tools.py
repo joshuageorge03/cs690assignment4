@@ -64,8 +64,27 @@ def workspace() -> Path:
 #     resolved (for example "../judge/acceptance_test.py"), by raising
 #         ToolFailure(f"{path} is outside the project folder. Use a path inside it, such as discounts.py.")
 #   - The workspace folder itself counts as inside.
+
 def safe_path(path: str) -> Path:
-    raise NotImplementedError("Part 1: write safe_path in agent/tools.py")
+    root = workspace().resolve()
+    requested = Path(path)
+
+    if requested.is_absolute():
+        raise ToolFailure(
+            f"{path} is outside the project folder. "
+            "Use a path inside it, such as discounts.py."
+        )
+
+    resolved = (root / requested).resolve()
+
+    if not resolved.is_relative_to(root):
+        raise ToolFailure(
+            f"{path} is outside the project folder. "
+            "Use a path inside it, such as discounts.py."
+        )
+
+    return resolved
+
 
 
 def list_files() -> str:
@@ -92,9 +111,54 @@ def list_files() -> str:
 #         one line per file line  f"{number:>4}: {text}"   (numbers start at 1)
 #         and, only if lines remain after `end`, a last line
 #                                 f"(more below: call read_file with start={end + 1})"
+
 def read_file(path: str, start: int = 1, limit: int = 80) -> str:
-    """TODO(Part 1): write this tool's description for the model. See HANDOUT.md, Part 1."""
-    raise NotImplementedError("Part 1: write read_file in agent/tools.py")
+    """Read lines from a text file inside the project workspace.
+
+    path is relative to the workspace. start is the first line
+    to read, starting at 1, and limit is the number of lines
+    requested. Returns numbered lines with a header and a
+    continuation instruction if more lines remain. Reads at
+    most READ_LIMIT_MAX lines. Use list_files to find valid paths.
+    """
+    file_path = safe_path(path)
+
+    if not file_path.is_file():
+        raise ToolFailure(
+            f"{path} is not a file in the project. "
+            "Call list_files to see the files."
+        )
+
+    if start < 1 or limit < 1:
+        raise ToolFailure("start and limit must be 1 or more.")
+
+    lines = file_path.read_text(encoding="utf-8").splitlines()
+    n = len(lines)
+
+    if n == 0:
+        return f"{path} is empty."
+
+    if start > n:
+        raise ToolFailure(
+            f"{path} has only {n} lines. "
+            f"Use a start between 1 and {n}."
+        )
+
+    limit = min(limit, READ_LIMIT_MAX)
+    end = min(start + limit - 1, n)
+
+    result = [f"{path}, lines {start} to {end} of {n}"]
+
+    for number in range(start, end + 1):
+        result.append(f"{number:>4}: {lines[number - 1]}")
+
+    if end < n:
+        result.append(
+            f"(more below: call read_file with start={end + 1})"
+        )
+
+    return "\n".join(result)
+
 
 
 # edit_file(path, old_text, new_text) replaces old_text with new_text, once, in one file.
@@ -109,9 +173,56 @@ def read_file(path: str, start: int = 1, limit: int = 80) -> str:
 #   - Exactly once: replace it, write the file back as UTF-8 with "\n" line endings, and
 #     return f"Edited {path}: replaced 1 match."
 #   - Change nothing in the file when you raise.
+
 def edit_file(path: str, old_text: str, new_text: str) -> str:
-    """TODO(Part 1): write this tool's description for the model. See HANDOUT.md, Part 1."""
-    raise NotImplementedError("Part 1: write edit_file in agent/tools.py")
+    """Replace exactly one matching piece of text in a project file.
+
+    path is relative to the workspace. old_text must match
+    the existing content exactly, including whitespace, and
+    new_text is its replacement. Returns a success message
+    after editing. Raises ToolFailure if the file is missing
+    or the text has zero or multiple matches. Use read_file
+    first to obtain the exact text without line numbers.
+    """
+    file_path = safe_path(path)
+
+    if not file_path.is_file():
+        raise ToolFailure(
+            f"{path} is not a file in the project. "
+            "Call list_files to see the files."
+        )
+
+    if old_text == "":
+        raise ToolFailure(
+            "old_text is empty. Copy the exact lines you want "
+            "to replace from read_file, without the line numbers."
+        )
+
+    content = file_path.read_text(encoding="utf-8")
+    count = content.count(old_text)
+
+    if count == 0:
+        raise ToolFailure(
+            f"old_text appears 0 times in {path}. "
+            "Read the file again with read_file and copy the "
+            "exact text, including its spaces, without the "
+            "line numbers."
+        )
+
+    if count > 1:
+        raise ToolFailure(
+            f"old_text appears {count} times in {path}. "
+            "Include more of the surrounding lines so that "
+            "it appears exactly once."
+        )
+
+    updated = content.replace(old_text, new_text, 1)
+
+    with file_path.open("w", encoding="utf-8", newline="\n") as file:
+        file.write(updated)
+
+    return f"Edited {path}: replaced 1 match."
+
 
 
 # format_report(report) turns a TestReport (agent/testrunner.py) into short text.
@@ -123,8 +234,29 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
 #     and, only if some were left out, a last line f"({k} more not shown)".
 #   - Never include anything else: no timings, no tracebacks, no passing tests.
 #     (The stop rule in Part 2 compares two outputs, so the same result must give the same text.)
+
 def format_report(report: TestReport) -> str:
-    raise NotImplementedError("Part 1: write format_report in agent/tools.py")
+    if not report.problems:
+        return f"PASSED: {report.total} of {report.total} tests passed."
+
+    count = len(report.problems)
+
+    result = [
+        f"FAILED: {count} of {report.total} tests did not pass."
+    ]
+
+    for problem in report.problems[:MAX_PROBLEM_LINES]:
+        result.append(
+            f"{problem.kind} {problem.name}: {problem.message}"
+        )
+
+    remaining = count - MAX_PROBLEM_LINES
+
+    if remaining > 0:
+        result.append(f"({remaining} more not shown)")
+
+    return "\n".join(result)
+
 
 
 # run_tests() runs the unit tests in the workspace's tests/ folder.
@@ -134,9 +266,31 @@ def format_report(report: TestReport) -> str:
 #         "have caused an endless loop; read the code you changed.")
 #   - Otherwise return format_report(report). Failing tests are not a tool failure: the
 #     tool worked, and its output says which tests failed.
+
 def run_tests() -> str:
-    """TODO(Part 1): write this tool's description for the model. See HANDOUT.md, Part 1."""
-    raise NotImplementedError("Part 1: write run_tests in agent/tools.py")
+    """Run the unit tests in the current project's tests folder.
+
+    Takes no inputs. Uses the existing unittest runner with
+    a fixed timeout and returns a short summary of passing
+    or failing tests. Test failures are returned as results,
+    not tool errors. If the tests exceed the time limit,
+    raises ToolFailure and suggests reviewing the last edit.
+    """
+    report = run_unittests(
+        workspace(),
+        timeout=TEST_TIMEOUT_SECONDS
+    )
+
+    if report.timed_out:
+        raise ToolFailure(
+            f"The tests did not finish within "
+            f"{TEST_TIMEOUT_SECONDS} seconds. "
+            "The last edit may have caused an endless loop; "
+            "read the code you changed."
+        )
+
+    return format_report(report)
+
 
 
 # The tools the agent offers, in this order. Do not rename them.

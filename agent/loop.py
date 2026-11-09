@@ -38,8 +38,12 @@ NOTES_HEADER = "Notes from earlier runs. Read them before you start:"
 #   - Otherwise: BASE_SYSTEM, a blank line, NOTES_HEADER, a newline, then notes.strip().
 #     That is: BASE_SYSTEM + "\n\n" + NOTES_HEADER + "\n" + notes.strip()
 #   This is long-term memory: the text of NOTES.md, put in front of the model at every start.
+
 def build_system_prompt(notes: str) -> str:
-    raise NotImplementedError("Part 3: write build_system_prompt in agent/loop.py")
+    if not notes.strip():
+        return BASE_SYSTEM
+    return BASE_SYSTEM + "\n\n" + NOTES_HEADER + "\n" + notes.strip()
+
 
 
 # run_agent(...) runs one attempt at the task and returns a RunResult.
@@ -83,6 +87,7 @@ def build_system_prompt(notes: str) -> str:
 # Every way of stopping writes exactly one trace.stop(...) event (attempt, step = steps,
 # status, reason, final_text, and the attempt's total input_tokens and output_tokens) and
 # returns RunResult(status, reason, steps, input_tokens, output_tokens, final_text, history).
+
 def run_agent(
     task: str,
     *,
@@ -94,4 +99,158 @@ def run_agent(
     notes: str = "",
     attempt: int = 1,
 ) -> RunResult:
-    raise NotImplementedError("Part 3: write run_agent in agent/loop.py")
+
+    system = build_system_prompt(notes)
+    history = [user_message(task)]
+
+    specs = [
+        spec for spec in toolbox.specs()
+        if gate_for(spec.name, {})[0] != "deny"
+    ]
+
+    steps = 0
+    input_tokens = 0
+    output_tokens = 0
+    last_output = None
+    edits = 0
+
+    status = ""
+    reason = ""
+    final_text = ""
+
+    while True:
+        # Check limits before making another model call.
+        stop_reason = budget_stop(
+            steps, input_tokens + output_tokens, limits
+        )
+
+        if stop_reason is not None:
+            status = "budget"
+            reason = stop_reason
+            break
+
+        # Ask the model what to do next.
+        try:
+            turn = provider.next_turn(system, history, specs)
+        except AIError as error:
+            status = "error"
+            reason = str(error)
+            break
+
+        steps += 1
+        input_tokens += turn.input_tokens
+        output_tokens += turn.output_tokens
+
+        history.append(turn.message)
+
+        # No tool calls means the model has finished.
+        if not turn.tool_calls:
+            status = "done"
+            reason = "the model replied without a tool call"
+            final_text = turn.text
+            break
+
+        stuck = False
+
+        # Process all tool calls in the current turn.
+        for call in turn.tool_calls:
+            decision, why = gate_for(call.name, call.args)
+
+            approved = None
+            approval_reason = ""
+
+            if decision == "deny":
+                ok = False
+                text = f"Refused by policy: {why}"
+
+            elif decision == "ask":
+                preview = toolbox.preview(call.name, call.args)
+
+                if preview is None:
+                    # Invalid edits return their tool error.
+                    ok, text = toolbox.call(call.name, call.args)
+
+                else:
+                    approved, approval_reason = approve(
+                        call, preview
+                    )
+
+                    if not approved:
+                        ok = False
+                        text = (
+                            f"A person rejected this {call.name} "
+                            f"call. Reason: {approval_reason}"
+                        )
+                    else:
+                        ok, text = toolbox.call(
+                            call.name, call.args
+                        )
+
+            else:
+                ok, text = toolbox.call(call.name, call.args)
+
+            # Return each tool result to the conversation.
+            history.append(
+                tool_result_message(call, text, ok)
+            )
+
+            # Record what happened.
+            trace.tool(
+                attempt=attempt,
+                step=steps,
+                thought=turn.text,
+                tool=call.name,
+                input=call.args,
+                gate=decision,
+                approved=approved,
+                reason=(
+                    approval_reason
+                    if approved is False else ""
+                ),
+                ok=ok,
+                output=text,
+                input_tokens=turn.input_tokens,
+                output_tokens=turn.output_tokens,
+            )
+
+            # Track successful edits.
+            if call.name == "edit_file" and ok:
+                edits += 1
+
+            # Compare test results to detect repeated failure.
+            if call.name == "run_tests" and ok:
+                if is_stuck(last_output, text, edits):
+                    stuck = True
+
+                last_output = text
+                edits = 0
+
+        # Stop only after processing every call in this turn.
+        if stuck:
+            status = "stuck"
+            reason = (
+                "the same tests failed the same way after an edit"
+            )
+            break
+
+    # Every stopping condition writes exactly one stop event.
+    trace.stop(
+        attempt=attempt,
+        step=steps,
+        status=status,
+        reason=reason,
+        final_text=final_text,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+    return RunResult(
+        status,
+        reason,
+        steps,
+        input_tokens,
+        output_tokens,
+        final_text,
+        history,
+    )
+

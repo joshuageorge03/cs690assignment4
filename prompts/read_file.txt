@@ -1,0 +1,3 @@
+Implement the read_file() function in agent/tools.py. It should use safe_path() to make sure the requested file is within the workspace.
+The function should read a specific range of lines from a file and return them with line numbers. Make sure it handles missing files, empty files, invalid line ranges, and requests beyond the end of the file. It should also limit how many lines can be returned at once and indicate when there are more lines to read.
+Follow the requirements and error messages provided in the comments above the function. Only modify read_file() and its docstring.

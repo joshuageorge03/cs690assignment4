@@ -1,0 +1,3 @@
+Implement the gate_for() function in agent/policy.py using the requirements provided in the starter code.
+The function should determine whether a tool is allowed, requires approval, or should be denied. Unknown tools should be denied, and edit_file should require approval unless it attempts to modify something inside the tests folder, which should always be denied.
+Make sure paths are normalized so the agent cannot bypass the tests restriction using different path formats. Use the existing GATES mapping and TESTS_RULE constant. Only modify gate_for() and do not change any other functions

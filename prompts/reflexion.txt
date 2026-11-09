@@ -1,0 +1,4 @@
+Implement the reflexion() function in agent/reflexion.py
+The function should run the coding agent for the specified number of attempts and use judge() to evaluate each attempt. If an attempt fails, it should call write_lesson() to generate feedback and save that lesson to the notes file so the next attempt can use it.
+Make sure the function reads the notes before each attempt, records judge and lesson events in the trace, and handles provider errors by stopping further attempts. If the acceptance tests pass, the function should stop and return a successful ReflexionResult.
+Follow the existing requirements and use the provided functions and classes. Only modify reflexion() and do not change any unrelated code.

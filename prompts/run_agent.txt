@@ -1,0 +1,5 @@
+Implement the run_agent() function in agent/loop.py
+The function should implement the ReAct loop by calling the AI model, processing tool calls, and returning their results to the conversation. It should use the existing gate_for(), budget_stop(), and is_stuck() functions from agent/policy.py.
+Make sure it handles tool permissions, requests human approval before valid edits, tracks the number of model calls and tokens used, and stops when the model finishes, encounters an error, reaches its budget, or gets stuck.
+Each tool call should be recorded in the trace, and all tool calls in a turn should be processed before checking whether the agent is stuck. Use the existing classes and functions provided in the starter code rather than introducing an agent framework.
+Only modify run_agent() and keep the existing interfaces unchanged.

@@ -23,11 +23,20 @@ from mcp.server import MCPServer
 from agent import tools
 
 # TODO(Part 5): create the server, register the tools, and write main(). About 15 lines.
-mcp = None
+
+mcp = MCPServer("a4-tools")
+
+for fn in tools.TOOLS:
+    mcp.add_tool(fn)
 
 
 def main() -> None:
-    raise NotImplementedError("Part 5: write server.py")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workspace", required=True)
+    args = parser.parse_args()
+
+    tools.use_workspace(args.workspace)
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
