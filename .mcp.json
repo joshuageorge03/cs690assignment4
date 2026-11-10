@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "a4-tools": {
+      "type": "stdio",
+      "command": "/Users/joshuageorge/Desktop/AI-assisted Course/Assignment-4/.venv/bin/python",
+      "args": [
+        "/Users/joshuageorge/Desktop/AI-assisted Course/Assignment-4/server.py",
+        "--workspace",
+        "runs/terminal/workspace"
+      ],
+      "env": {}
+    }
+  }
+}

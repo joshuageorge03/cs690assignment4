@@ -136,3 +136,103 @@ checks:    pytest -q: 37 passed, 3 failed
 evidence:  HANDOUT Part 4; comments above reflexion in agent/reflexion.py
 risk:      repeated attempts with actual model responses may behave
            differently from the provided tests
+
+
+## Entry 7
+artifact:  runs/runA, local tools
+tool:      my agent (python -m agent run runA), OpenAI gpt-4.1-mini
+prompts:   default task "Make the tests pass." and BASE_SYSTEM in
+           agent/loop.py
+review:    reviewed the first proposed edit and rejected it because
+           the agent had only read the tests and source code, not
+           spec.md. I asked it to review the specification before
+           making changes. It then read spec.md and proposed a
+           second edit that handled both case-insensitive codes
+           and expired discount codes. I approved that edit
+checks:    run_tests: 4 of 4 passed
+           judge: 6 of 6 passed
+           check-trace and replay: pending verification
+evidence:  runs/runA/trace.jsonl; HANDOUT Part 6
+risk:      only one recorded run, and I relied on the provided
+           tests and judge to verify the final changes
+dataset:   fixture/ at commit acb0f57, task "Make the tests pass."
+result:    stopped done after 8 model calls and 7 tool calls;
+           10,810 input tokens, 741 output tokens, cost $0.0055;
+           judge PASS
+changed:   rejected the first edit and requested a review of spec.md;
+           approved the revised edit to discounts.py that added
+           code normalization and expiration checking
+
+## Entry 8
+artifact:  runs/runB, MCP tools with Reflexion
+tool:      my agent (python -m agent run runB --tools mcp --judge),
+           OpenAI gpt-4.1-mini
+prompts:   default task "Make the tests pass." and BASE_SYSTEM in
+           agent/loop.py; prompts/runB-task.md
+review:    reviewed the first proposed edit and rejected it because
+           expired discount codes returned the original total instead
+           of raising ValueError. I asked the agent to read spec.md
+           and check all five rules. The agent then attempted another
+           edit, but edit_file rejected it because the old text did
+           not match. It reread discounts.py and proposed a corrected
+           edit, which I approved
+checks:    run_tests: 4 of 4 passed
+           judge: 6 of 6 passed
+           check-trace and replay: pending verification
+evidence:  runs/runB/trace.jsonl; HANDOUT Part 6
+risk:      Reflexion did not need a second attempt because the judge
+           passed on the first attempt. This run does not demonstrate
+           whether saved lessons improve later attempts
+dataset:   fixture/ at commit acb0f57, task "Make the tests pass."
+result:    stopped done after 10 model calls and 9 tool calls;
+           17,116 input tokens, 1,078 output tokens, cost $0.0086;
+           judge PASS on attempt 1
+changed:   rejected the initial incorrect expiration handling;
+           approved the revised discounts.py edit after the agent
+           reviewed spec.md and recovered from a failed text match
+
+
+## Entry 9
+artifact:  .claude/agents/reviewer.md, read-only reviewer subagent
+tool:      ChatGPT, GPT-6
+prompts:   asked AI to create a reviewer subagent that checks Python
+           code against spec.md without making modifications;
+           prompts/reviewer_agent.txt
+review:    reviewed the reviewer configuration and checked that it
+           only has access to Read, Grep, and Glob. Verified that
+           its instructions require checking each rule in spec.md
+           and explaining any violations without modifying files
+checks:    claude --agent reviewer: completed read-only review of
+           runs/runB/workspace/discounts.py against spec.md;
+           all five specification rules reported as followed
+evidence:  HANDOUT Part 7; .claude/agents/reviewer.md;
+           evidence/review.md
+risk:      the reviewer only inspected the code and did not execute
+           tests; its conclusions depend on static analysis
+evidence:  HANDOUT Part 7; .claude/agents/reviewer.md
+risk:      the reviewer may overlook requirements or incorrectly
+           interpret parts of the specification
+
+
+## Entry 10
+artifact:  .claude/agents/fixer.md, runs/vendor, vendor fixer experiment
+tool:      Claude Code, fixer subagent
+prompts:   asked the fixer to make the tests pass in the vendor
+           workspace; instructions in .claude/agents/fixer.md;
+           prompts/fixer_agent.txt
+review:    reviewed the fixer's implementation and final response.
+           It added code.upper() to handle lowercase discount codes.
+           The fixer identified the missing expiration requirement
+           but left it unchanged because all visible tests passed
+checks:    python -m agent judge vendor:
+           visible tests 4 of 4 passed;
+           acceptance tests 5 of 6 passed
+evidence:  HANDOUT Part 7; evidence/fixer.md;
+           runs/vendor/judge.txt
+risk:      the fix passes the visible tests but fails the expiration
+           requirement checked by the independent judge
+dataset:   runs/vendor/workspace, clean copy of fixture/
+result:    visible tests passed; independent judge failed because
+           expired discount codes did not raise ValueError
+changed:   added code = code.upper() to discounts.py;
+           did not modify the expiration handling

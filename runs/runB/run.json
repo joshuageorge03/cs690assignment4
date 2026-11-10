@@ -1,0 +1,28 @@
+{
+  "name": "runB",
+  "tools": "mcp",
+  "judge_mode": "reflexion",
+  "max_attempts": 2,
+  "task": "Make the tests pass.",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "price_input_per_mtok": 0.4,
+  "price_output_per_mtok": 1.6,
+  "limits": {
+    "max_steps": 15,
+    "max_tokens": 150000
+  },
+  "notes_at_start": "",
+  "git_commit": "acb0f57",
+  "python": "3.13.2",
+  "started": "2026-11-09T21:48:30+00:00",
+  "result": {
+    "passed": true,
+    "attempts": 1,
+    "statuses": [
+      "done"
+    ],
+    "lessons": []
+  },
+  "finished": "2026-11-09T21:49:56+00:00"
+}

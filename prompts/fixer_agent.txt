@@ -1,0 +1,6 @@
+Create a fixer subagent for Claude Code in .claude/agents/fixer.md.
+The fixer should work in runs/vendor/workspace and use Read, Edit, and Bash tools. It should run the project's unit tests, identify what is causing the failures, and make the smallest changes necessary to fix them.
+The fixer should not modify any files inside the tests folder. After making changes, it should run the tests again and explain what was changed.
+Use the required Claude Code agent configuration format and do not modify any unrelated files.
+Actual task sent to the fixer:
+Make the tests pass in runs/vendor/workspace.

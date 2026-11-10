@@ -1,0 +1,5 @@
+Create a reviewer subagent for Claude Code in .claude/agents/reviewer.md
+The reviewer should examine Python code against the requirements in spec.md. It should read the specification and the file being reviewed, then identify any missing or incorrectly implemented requirements.
+For each issue, explain which rule is violated, where the problem occurs, and why it matters.
+The reviewer should be read-only and must not modify any files. Restrict its tools to Read, Grep, and Glob.
+Use the required Claude Code agent configuration format and do not modify any unrelated files.
